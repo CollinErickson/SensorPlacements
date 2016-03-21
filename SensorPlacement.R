@@ -1,45 +1,49 @@
 sensorpl <- function(V,np,ttheta) {
+  # Description: This function takes in input and returns the order of points selected
+  #   using the method of Krause et al. (2008)
+  # Input:
+  #   V: the designmatrix where each row is a design point
+  #   np: # of sensors to place
+  #   ttheta: theta for the correlation function
+  # Output:
+  #   A.inds: vector of indices of the selected rows
+  
   dd <- ncol(V) # dimensions of problem
-  #k <- 0 # # of sensors placed
-  #browser()
-  A.inds <- c()
-  Abar.inds <- 1:(dim(V)[1])
+  
+  A.inds <- c() # Selected indices
+  Abar.inds <- 1:(dim(V)[1]) # Unselected indices
+  
   # This is to find first point
-  deltas <- rep(NA,length(Abar.inds))
-  for (Abar.ind in 1:length(Abar.inds)) { # place first sensor?
-    #if(dd==1)
-    #  Abar <- matrix(V,nrow=length(Abar.inds),byrow=T)
-    #else
-    Abar <- V
-    yy <- Abar[Abar.ind,]
-    Abar.temp <- matrix(Abar[-Abar.ind,],nrow=nrow(Abar)-1,byrow=T)
+  deltas <- rep(NA,length(Abar.inds)) # We pick point with highest delta
+  for (Abar.ind in 1:length(Abar.inds)) { # loop through all unselected and calculate delta for it
+    Abar <- V # Points not selected
+    yy <- Abar[Abar.ind,] # The point we are checking
+    Abar.temp <- matrix(Abar[-Abar.ind,],nrow=nrow(Abar)-1,byrow=T) # All the remaining points
     #SAy <- apply(A,1,function(rrow){gaussian.corr(yy,rrow,ttheta)})
     SAbar.tempy <- apply(Abar.temp,1,function(rrow){gaussian.corr(yy,rrow,ttheta)})
+      # Correlation of Abar.tempy with yy
     
-    SAbarAbar.temp <- matrix(NA,length(Abar.inds)-1,length(Abar.inds)-1)
+    SAbarAbar.temp <- matrix(NA,length(Abar.inds)-1,length(Abar.inds)-1) # Correlation matrix for SAbar
     for (row.ind in 1:(length(Abar.inds)-1)) {
       SAbarAbar.temp[row.ind,] <- apply(Abar.temp,1,function(rrow){gaussian.corr(Abar.temp[row.ind,],rrow,ttheta)})
     }
-    s2y <- 1
-    #delta <- (s2y-t(SAy)%*%SAA.inv%*%SAy)/(s2y-t(SAbar.tempy)%*%solve(SAbarAbar.temp,SAbar.tempy))
-    #browser()
+    s2y <- 1 # I think this is what it should be, not sure actually
     delta <- 1/(s2y-t(SAbar.tempy)%*%solve(SAbarAbar.temp,SAbar.tempy))
-    deltas[Abar.ind] <- delta
+    deltas[Abar.ind] <- delta # Update with the value of delta
   }
-  print(deltas)
-  begin.with <- which.max(deltas)
+  #print(deltas)
+  begin.with <- which.max(deltas) # Stores index to store first
   rm(yy,Abar.ind,Abar.temp,SAbar.tempy,SAbarAbar.temp,row.ind,s2y,deltas,delta,A.inds,Abar.inds)
-  # end first point
+  #   Delete everything, did this to make sure there was no contamination
+  ### End of first point selection
   
-  A.inds <- begin.with
-  Abar.inds <- setdiff(1:(dim(V)[1]),begin.with)
+  A.inds <- begin.with # selected indices
+  Abar.inds <- setdiff(1:(dim(V)[1]),begin.with) # Unselected indices
   
-  #A.inds <- c(1)
-  #Abar.inds <- 2:(dim(V)[1])
-  # get rest
+  # Get rest of indices
   for(k in 2:np) {#while(k<np) { # place next sensor
     # get A corr matrix
-    if(dd==1)
+    if(dd==1) # Need separate cases when 1-D vs 2+-D
       A <- matrix(V[A.inds],nrow=length(A.inds))
     else { 
       if(length(A.inds)==1)
@@ -47,7 +51,7 @@ sensorpl <- function(V,np,ttheta) {
       else
         A <- V[A.inds,]
     }
-    SAA <- matrix(NA,length(A.inds),length(A.inds))
+    SAA <- matrix(NA,length(A.inds),length(A.inds)) # Correlation matrix for A
     for (row.ind in 1:length(A.inds)) {
       SAA[row.ind,] <- apply(A,1,function(rrow){gaussian.corr(A[row.ind,],rrow,ttheta)})
     }
@@ -89,11 +93,8 @@ sensorpl <- function(V,np,ttheta) {
   }
   return(A.inds)
 }
-s2ya <- function(yy,AA,SAA.inv,ttheta) {
-  SAy <- apply(AA,1,function(rrow){gaussian.corr(yy,rrow,ttheta)})
-  1 - t(SAy) %*% SAA.inv %*% SAy
-}
-gaussian.corr <- function(xx1,xx2,ttheta) {
+
+gaussian.corr <- function(xx1,xx2,ttheta) { # Gets the Gaussian correlation
   exp(-sum(abs(xx1-xx2)^2*ttheta))
 }
 if (F) {
